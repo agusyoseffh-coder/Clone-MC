@@ -16,7 +16,7 @@ public class Chunk {
     public boolean dirty = true;
     private Mesh mesh;
 
-    // urutan: +X, -X, +Y, -Y, +Z, -Z
+    // urutan sisi: +X, -X, +Y(atas), -Y(bawah), +Z, -Z
     static final int[][] DIR = {{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
     static final int[][][] QUAD = {
         {{1,0,0},{1,1,0},{1,1,1},{1,0,1}},
@@ -27,11 +27,28 @@ public class Chunk {
         {{0,0,0},{0,1,0},{1,1,0},{1,0,0}}
     };
     static final float[] SHADE = {0.8f, 0.8f, 1f, 0.5f, 0.65f, 0.65f};
-    // 0 = udara, 1 = rumput, 2 = tanah, 3 = batu
-    static final float[][] COLOR = {
-        {0,0,0}, {0.35f,0.7f,0.25f}, {0.55f,0.4f,0.25f}, {0.5f,0.5f,0.5f}
-    };
     static final short[] TRI = {0, 1, 2, 0, 2, 3};
+
+    // 0 udara, 1 rumput, 2 tanah, 3 batu, 4 pasir, 5 kayu, 6 daun, 7 papan, 8 cobblestone, 9 bata
+    static final float[][] COLOR = {
+        {0, 0, 0},
+        {0.35f, 0.70f, 0.25f},
+        {0.55f, 0.40f, 0.25f},
+        {0.50f, 0.50f, 0.50f},
+        {0.85f, 0.80f, 0.50f},
+        {0.40f, 0.30f, 0.15f},
+        {0.20f, 0.55f, 0.15f},
+        {0.70f, 0.55f, 0.30f},
+        {0.40f, 0.40f, 0.42f},
+        {0.60f, 0.25f, 0.20f}
+    };
+    static final float[] LOG_TOP = {0.70f, 0.55f, 0.30f};
+
+    public static float[] color(int id, int face) {
+        if (id == 1 && face != 2) return COLOR[2];          // sisi dan bawah rumput = tanah
+        if (id == 5 && (face == 2 || face == 3)) return LOG_TOP;
+        return COLOR[id];
+    }
 
     public Chunk(int cx, int cz) { this.cx = cx; this.cz = cz; }
 
@@ -48,10 +65,11 @@ public class Chunk {
                     byte b = blocks[idx(x, y, z)];
                     if (b == 0) continue;
                     int wx = cx * S + x, wz = cz * S + z;
+                    float var = 0.94f + ((wx * 73856093 ^ y * 19349663 ^ wz * 83492791) & 3) * 0.02f;
                     for (int f = 0; f < 6; f++) {
                         if (w.get(wx + DIR[f][0], y + DIR[f][1], wz + DIR[f][2]) != 0) continue;
-                        float[] c = COLOR[b];
-                        float sh = SHADE[f];
+                        float[] c = color(b, f);
+                        float sh = SHADE[f] * var;
                         float col = Color.toFloatBits(c[0] * sh, c[1] * sh, c[2] * sh, 1f);
                         for (int q = 0; q < 4; q++) {
                             v.add(wx + QUAD[f][q][0]);
@@ -75,6 +93,6 @@ public class Chunk {
     }
 
     public void dispose() {
-        if (mesh != null) mesh.dispose();
+        if (mesh != null) { mesh.dispose(); mesh = null; }
     }
 }
